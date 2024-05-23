@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  compound_gpt: # 更換名字
+    image: compound:py310-torch211-cuda121
+    container_name: compound
+    stdin_open: true
+    tty: true
+    ipc: host
+    volumes:
+      - ./:/workfile # ex: - /data/tzeshinchen/research/CompoundGPT_finetune:/workfile
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0,1,2,3
