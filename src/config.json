@@ -1,9 +1,11 @@
 {
   "dataset": "zinc20",
   "gpt_size": "gpt2",
-  "checkpoint_path": "./model_save_path_zinc20/pretrain/checkpoint-3760000",
-  "ML_checkpoint_files": "/data/tzeshinchen/research/CompoundGPT_finetune/src/ML_logs",
+  "checkpoint_path": "./model_save_path_zinc20/checkpoint-4468000",
+  "ML_checkpoint_files": "./ML_logs",
   "train_data_path": "./dataset/sglt2/sglt2.csv",
+  "test_data_path": "None",
+  "kinase_name": "SGLT2",
   "tokenizer_name": "./zinc20M_gpt2_tokenizer",
   "learning_rate": 0.00005,
   "batch_size": 256,

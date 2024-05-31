@@ -28,8 +28,6 @@ Workflow
     │   └── checkpoint-4468000
     ├── output
     │   └── reward_epoch
-    ├── __pycache__
-    │   └── trainer.cpython-311.pyc
     ├── reward.py
     ├── trainer.py
     ├── visualize.ipynb
