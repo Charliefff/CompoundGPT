@@ -8,27 +8,35 @@ import numpy as np
 import joblib
 import json
 import os
+from dataclasses import dataclass, field
 # Model
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
-from sklearn.mixture import GaussianMixture
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
 
 
-class Model():
+@dataclass
+class Model:
+    model: any
+    training_path: str = None
+    testing_path: str = None
+    model_path: str = None
+    train_smiles: list = field(init=False, default_factory=list)
+    train_labels: list = field(init=False, default_factory=list)
+    test_smiles: list = field(init=False, default_factory=list)
+    test_labels: list = field(init=False, default_factory=list)
+    train_ecfp: list = field(init=False, default_factory=list)
+    test_ecfp: list = field(init=False, default_factory=list)
+    prediction: list = field(init=False, default_factory=list)
+    probabilities: list = field(init=False, default=None)
 
-    def __init__(self, model, training_path=None, testing_path=None, model_path=None) -> None:
-        self.model = model
+    def __post_init__(self):
         self.train_smiles, self.train_labels, self.test_smiles, self.test_labels = self.read_data(
-            training_path, testing_path)
+            self.training_path, self.testing_path)
         self.train_ecfp = [self.smiles_to_ecfp(s) for s in self.train_smiles]
         self.test_ecfp = [self.smiles_to_ecfp(s) for s in self.test_smiles]
-        self.model_path = model_path
         self.train()
         self.prediction = self.predict()
 
@@ -36,7 +44,6 @@ class Model():
             self.probabilities = self.predict_proba()
         except:
             print('This model does not support predict_proba()')
-            self.probabilities = None
 
     def train(self):
         self.model.fit(self.train_ecfp, self.train_labels)
@@ -86,6 +93,16 @@ class Model():
         return X_train, labels, X_test, test_labels
 
 
+def print_performance(name, sn, sp, acc, mcc):
+    
+    print(f"{name}: ")
+    print(f"Sensitivity (Sn): {sn:.3f}")
+    print(f"Specificity (Sp): {sp:.3f}")
+    print(f"Accuracy (Acc): {acc:.3f}")
+    print(f"Matthews Correlation Coefficient (MCC): {mcc:.3f}")
+    print()
+
+    
 if __name__ == '__main__':
 
     with open('./config.json', 'r') as f:
@@ -98,16 +115,30 @@ if __name__ == '__main__':
     if not os.path.exists('./ML_logs'):
         os.mkdir('./ML_logs')
 
+    # RF
     Random_Forest_model = Model(
         RandomForestClassifier(), training_path, testing_path, kinase)
     Random_Forest_model.save_model(
         './ML_logs/RF_{}.joblib'.format(kinase))
+    
+    # SVM
+    SVM_model = Model(SVC(probability=True), training_path, testing_path, kinase)
+    SVM_model.save_model('./ML_logs/SVM_{}.joblib'.format(kinase))
 
-    # 之後補上其他的 model
+    # MLP
+    MLP_model = Model(MLPClassifier(), training_path, testing_path, kinase)
+    MLP_model.save_model('./ML_logs/MLP_{}.joblib'.format(kinase))
+
+    # Logistic Regression
+    LR_model = Model(LogisticRegression(), training_path, testing_path, kinase)
+    LR_model.save_model('./ML_logs/LR_{}.joblib'.format(kinase))
+
+
     sn, sp, acc, mcc = Random_Forest_model.evaluate()
-    Random_Forest_prediction = Random_Forest_model.prediction
-    print("Model Evaluation:")
-    print(f"Sensitivity (Sn): {sn:.3f}")
-    print(f"Specificity (Sp): {sp:.3f}")
-    print(f"Accuracy (Acc): {acc:.3f}")
-    print(f"Matthews Correlation Coefficient (MCC): {mcc:.3f}")
+    print_performance("RF", sn, sp, acc, mcc)
+    sn, sp, acc, mcc = SVM_model.evaluate()
+    print_performance("SVC", sn, sp, acc, mcc)
+    sn, sp, acc, mcc = MLP_model.evaluate()
+    print_performance("MLP", sn, sp, acc, mcc)
+    sn, sp, acc, mcc = LR_model.evaluate()
+    print_performance("LogisticRegression", sn, sp, acc, mcc)

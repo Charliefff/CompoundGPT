@@ -49,6 +49,7 @@ def main():
                 f.write(i+'\n')
 
 if __name__ == '__main__':
+    
     config = {
         "dataset": "zinc20",
         "gpt_size": 'gpt2',

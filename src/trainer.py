@@ -1,6 +1,5 @@
 from typing import Any
-
-
+from dataclasses import dataclass, field
 from transformers import AutoTokenizer, GPT2LMHeadModel, AutoConfig
 from transformers import get_linear_schedule_with_warmup
 from transformers import Trainer, TrainingArguments
@@ -17,11 +16,11 @@ import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
-class SMILESDataset(Dataset):
-    def __init__(self, smiles_list, tokenizer, max_length):
-        self.smiles_list = smiles_list
-        self.tokenizer = tokenizer
-        self.max_length = max_length
+@dataclass
+class SmliesDataset(Dataset):
+    smiles_list: list
+    tokenizer: any
+    max_length: int
 
     def __len__(self):
         return len(self.smiles_list)
@@ -43,48 +42,49 @@ class SMILESDataset(Dataset):
         }
 
 
+
+@dataclass
 class CustomTrainer:
-    def __init__(self, df_list, config):
+    df_list: list
+    config: dict
+    device: str = field(init=False)
+    max_gen_length: int = field(init=False)
+    tokenizer: any = field(init=False)
+    data_collator: any = field(init=False)
+    model: any = field(init=False)
+    optimizer: any = field(init=False)
+    scheduler: any = field(init=False)
+    trainer: Trainer = field(init=False)
+    generate_num: int = field(init=False)
 
-        self.device = config['device']
-        self.max_gen_length = config['max_gen_length']
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            config['tokenizer_name'])
+    def __post_init__(self):
+        self.device = self.config['device']
+        self.max_gen_length = self.config['max_gen_length']
+        self.tokenizer = AutoTokenizer.from_pretrained(self.config['tokenizer_name'])
         self.data_collator = DataCollatorForLanguageModeling(
-            tokenizer=self.tokenizer,
-            mlm=False)
-
-        if config['checkpoint_path'] is None:
-            self.model = GPT2LMHeadModel.from_pretrained(
-                config['gpt_size'])
-        else:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                config['checkpoint_path'])
+            tokenizer=self.tokenizer, mlm=False)
+        
+        self.model = GPT2LMHeadModel.from_pretrained(
+            self.config['gpt_size']) if self.config['checkpoint_path'] is None else AutoModelForCausalLM.from_pretrained(self.config['checkpoint_path'])
+        
         self.model.to(self.device)
-
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=config['learning_rate'],
-            eps=1e-8
-        )
-
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config['learning_rate'], eps=1e-8)
         self.scheduler = get_linear_schedule_with_warmup(
             self.optimizer,
-            num_warmup_steps=config['warmup_steps'],
-            num_training_steps=len(
-                df_list) // config['batch_size'] * config['training_epochs']
+            num_warmup_steps=self.config['warmup_steps'],
+            num_training_steps=len(self.df_list) // self.config['batch_size'] * self.config['training_epochs']
         )
 
         training_args = TrainingArguments(
-            output_dir=config['model_save_path'],
-            num_train_epochs=config['training_epochs'],
-            per_device_train_batch_size=config['batch_size'],
-            warmup_steps=config['warmup_steps'],
-            gradient_accumulation_steps=config['update_loss'],
+            output_dir=self.config['model_save_path'],
+            num_train_epochs=self.config['training_epochs'],
+            per_device_train_batch_size=self.config['batch_size'],
+            warmup_steps=self.config['warmup_steps'],
+            gradient_accumulation_steps=self.config['update_loss'],
             weight_decay=0.01,
-            logging_dir=config['logdir'],
-            logging_steps=config['log_interval'],
-            save_steps=config['save_interval'],
+            logging_dir=self.config['logdir'],
+            logging_steps=self.config['log_interval'],
+            save_steps=self.config['save_interval'],
             load_best_model_at_end=False,
             evaluation_strategy="no",
             save_strategy="steps",
@@ -94,12 +94,12 @@ class CustomTrainer:
         self.trainer = Trainer(
             model=self.model,
             args=training_args,
-            train_dataset=SMILESDataset(
-                df_list, self.tokenizer, config['max_length']),
+            train_dataset=SmliesDataset(
+                self.df_list, self.tokenizer, self.config['max_length']),
             data_collator=self.data_collator,
-            optimizers=(self.optimizer, self.scheduler),
+            optimizers=(self.optimizer, self.scheduler)
         )
-        self.generate_num = config['generate_num']
+        self.generate_num = self.config['generate_num']
 
     def train(self, reward_model_path="None"):
 
